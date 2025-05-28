@@ -1,5 +1,7 @@
 # Environment variables
 .env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -41,4 +43,26 @@ ENV/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Project specific
+instance/
+*.db
+*.sqlite3
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+
+# Image files (except those in docs/images)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+!docs/images/*.png
+!docs/images/*.jpg
+!docs/images/*.jpeg
+!docs/images/*.gif
+!docs/images/*.bmp 

@@ -2,6 +2,9 @@
 
 A modern web application to explore and manage directory sizes on macOS, with AI-powered suggestions for space optimization.
 
+![Main Interface](docs/images/main-interface.png)
+*Main interface showing directory contents sorted by size*
+
 ## Features
 
 - **Directory Size Analysis**: View directory contents sorted by size with a clean, modern interface
@@ -11,6 +14,9 @@ A modern web application to explore and manage directory sizes on macOS, with AI
 - **Safe Deletion**: Move directories to Trash with proper validation and safety checks
 - **Real-time Feedback**: Loading indicators with elapsed time tracking
 - **Responsive Design**: Works seamlessly on all screen sizes
+
+
+*AI-powered suggestions for space optimization*
 
 ## Prerequisites
 
@@ -22,7 +28,7 @@ A modern web application to explore and manage directory sizes on macOS, with AI
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/kvr2277/mac-directory-explorer.git
 cd mac-directory-explorer
 ```
 
@@ -60,6 +66,9 @@ flask run
    - Click the trash icon to safely move directories to Trash
    - View directory contents and sizes before deletion
 
+![Safe Deletion](docs/images/safe-deletion.png)
+*Safe deletion process with directory contents preview*
+
 ## Development
 
 ### Project Structure
@@ -70,6 +79,8 @@ mac-directory-explorer/
 ├── .env               # Environment variables (not in version control)
 ├── .env.example       # Example environment variables
 ├── .gitignore        # Git ignore rules
+├── docs/             # Documentation and images
+│   └── images/       # Screenshots and diagrams
 └── templates/         # HTML templates
     └── index.html    # Main application template
 ```
