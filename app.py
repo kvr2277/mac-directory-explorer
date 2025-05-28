@@ -92,6 +92,14 @@ def get_contents():
     if not os.path.exists(path):
         return jsonify({'error': 'Path does not exist'}), 404
     
+    # If path is a file, return empty contents
+    if os.path.isfile(path):
+        return jsonify({
+            'contents': [],
+            'current_path': path,
+            'parent_path': str(Path(path).parent)
+        })
+    
     contents = get_directory_contents(path)
     parent_path = str(Path(path).parent)
     

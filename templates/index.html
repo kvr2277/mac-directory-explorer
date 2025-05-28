@@ -590,92 +590,160 @@
         }
 
         async function showDeleteCommand(path, name) {
-            const modal = document.getElementById('commandModal');
-            const content = document.getElementById('commandContent');
-
-            // Show loading state
-            content.innerHTML = '<div class="loading-dots">Loading directory contents... 0s</div>';
-            modal.style.display = 'block';
-            startLoadingTimer();
-
             try {
-                // First fetch directory contents
+                // Check if it's a file or directory
                 const response = await fetch(`/get_directory_contents?path=${encodeURIComponent(path)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const data = await response.json();
 
-                // Calculate total size
-                const totalSize = data.contents.reduce((sum, item) => sum + item.size, 0);
-                const formattedTotalSize = formatSize(totalSize);
+                // If data.contents is empty, it's a file - delete directly
+                if (data.contents.length === 0) {
+                    const command = `mv -f ${path} ~/.Trash/`;
+                    try {
+                        const deleteResponse = await fetch('/execute_command', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                command: command,
+                                path: currentPath
+                            })
+                        });
 
-                // Create directory contents table
-                let contentsHtml = `
-                    <div class="mb-4">
-                        <h3 class="text-lg font-semibold mb-2">Directory Contents (${data.contents.length} items)</h3>
-                        <p class="text-sm text-gray-600 mb-4">Total Size: ${formattedTotalSize}</p>
-                        <div class="max-h-60 overflow-y-auto">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left">Name</th>
-                                        <th class="px-4 py-2 text-left">Type</th>
-                                        <th class="px-4 py-2 text-left">Size</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-200">
-                `;
+                        if (!deleteResponse.ok) {
+                            throw new Error(`HTTP error! status: ${deleteResponse.status}`);
+                        }
 
-                data.contents.forEach(item => {
-                    contentsHtml += `
-                        <tr>
-                            <td class="px-4 py-2">${item.name}</td>
-                            <td class="px-4 py-2">${item.type}</td>
-                            <td class="px-4 py-2">${item.formatted_size}</td>
-                        </tr>
+                        const deleteData = await deleteResponse.json();
+                        if (!deleteData.error) {
+                            // Refresh the directory contents after successful deletion
+                            await fetchDirectoryContents(currentPath);
+                        } else {
+                            // Show error in a temporary notification
+                            const notification = document.createElement('div');
+                            notification.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50';
+                            notification.innerHTML = `
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span>${deleteData.error}</span>
+                                </div>
+                            `;
+                            document.body.appendChild(notification);
+
+                            // Remove notification after 5 seconds
+                            setTimeout(() => {
+                                notification.remove();
+                            }, 5000);
+                        }
+                    } catch (error) {
+                        // Show error in a temporary notification
+                        const notification = document.createElement('div');
+                        notification.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50';
+                        notification.innerHTML = `
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span>Error deleting file: ${error.message}</span>
+                            </div>
+                        `;
+                        document.body.appendChild(notification);
+
+                        // Remove notification after 5 seconds
+                        setTimeout(() => {
+                            notification.remove();
+                        }, 5000);
+                    }
+                    return;
+                }
+
+                // For directories, show the modal with contents
+                const modal = document.getElementById('commandModal');
+                const content = document.getElementById('commandContent');
+
+                // Show loading state
+                content.innerHTML = '<div class="loading-dots">Loading... 0s</div>';
+                modal.style.display = 'block';
+                startLoadingTimer();
+
+                try {
+                    const totalSize = data.contents.reduce((sum, item) => sum + item.size, 0);
+                    const formattedTotalSize = formatSize(totalSize);
+
+                    let contentsHtml = `
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2">Directory Contents (${data.contents.length} items)</h3>
+                            <p class="text-sm text-gray-600 mb-4">Total Size: ${formattedTotalSize}</p>
+                            <div class="max-h-60 overflow-y-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left">Name</th>
+                                            <th class="px-4 py-2 text-left">Type</th>
+                                            <th class="px-4 py-2 text-left">Size</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
                     `;
-                });
 
-                contentsHtml += `
+                    data.contents.forEach(item => {
+                        contentsHtml += `
+                            <tr>
+                                <td class="px-4 py-2">${item.name}</td>
+                                <td class="px-4 py-2">${item.type}</td>
+                                <td class="px-4 py-2">${item.formatted_size}</td>
+                            </tr>
+                        `;
+                    });
+
+                    contentsHtml += `
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                `;
+                    `;
 
-                // Create the command with proper escaping
-                const command = `mv -f ${path} ~/.Trash/`;
+                    const command = `mv -f ${path} ~/.Trash/`;
 
-                // Add the delete command section
-                contentsHtml += `
-                    <div class="mt-6 pt-4 border-t border-gray-200">
-                        <div class="command-box">
-                            <div class="flex justify-between items-center">
-                                <span class="text-yellow-400">$ ${command}</span>
-                                <button class="copy-button" data-command="${command}">Copy</button>
+                    contentsHtml += `
+                        <div class="mt-6 pt-4 border-t border-gray-200">
+                            <div class="command-box">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-yellow-400">$ ${command}</span>
+                                    <button class="copy-button" data-command="${command}">Copy</button>
+                                </div>
                             </div>
+                            <div class="warning-text">
+                                ⚠️ This command will move "${name}" and all its contents to the Trash folder.
+                            </div>
+                            <button class="execute-button" data-command="${command}">Execute Command</button>
+                            <div id="commandOutput" class="command-output" style="display: none;"></div>
                         </div>
-                        <div class="warning-text">
-                            ⚠️ This command will move "${name}" and all its contents to the Trash folder.
-                        </div>
-                        <button class="execute-button" data-command="${command}">Execute Command</button>
-                        <div id="commandOutput" class="command-output" style="display: none;"></div>
-                    </div>
-                `;
+                    `;
 
-                content.innerHTML = contentsHtml;
+                    content.innerHTML = contentsHtml;
 
-                // Add event listeners after the content is added to the DOM
-                document.querySelector('.copy-button').addEventListener('click', function () {
-                    copyCommand(this.dataset.command);
-                });
+                    // Add event listeners after the content is added to the DOM
+                    document.querySelector('.copy-button').addEventListener('click', function () {
+                        copyCommand(this.dataset.command);
+                    });
 
-                document.querySelector('.execute-button').addEventListener('click', function () {
-                    executeCommand(this.dataset.command);
-                });
+                    document.querySelector('.execute-button').addEventListener('click', function () {
+                        executeCommand(this.dataset.command);
+                    });
 
+                } catch (error) {
+                    content.innerHTML = `<div class="error-output">Error loading contents: ${error.message}</div>`;
+                } finally {
+                    stopLoadingTimer();
+                }
             } catch (error) {
-                content.innerHTML = `<div class="error-output">Error loading directory contents: ${error.message}</div>`;
-            } finally {
-                stopLoadingTimer();
+                console.error('Error:', error);
             }
         }
 
