@@ -1,4 +1,4 @@
-# Mac Directory Size Explorer
+# Mac Storage Explorer
 
 A modern web application to explore and manage directory sizes on macOS, with AI-powered suggestions for space optimization.
 
