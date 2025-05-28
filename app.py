@@ -54,6 +54,10 @@ def get_directory_contents(path):
         for item in os.listdir(path):
             full_path = os.path.join(path, item)
             try:
+                # Get last modified time
+                last_modified = os.path.getmtime(full_path)
+                last_modified_str = datetime.fromtimestamp(last_modified).strftime('%Y-%m-%d %I:%M %p')
+                
                 if os.path.isdir(full_path):
                     size = get_size(full_path)
                     items.append({
@@ -61,7 +65,8 @@ def get_directory_contents(path):
                         'type': 'directory',
                         'size': size,  # Store raw size for sorting
                         'formatted_size': format_size(size),  # Store formatted size for display
-                        'path': full_path
+                        'path': full_path,
+                        'last_modified': last_modified_str
                     })
                 else:
                     size = os.path.getsize(full_path)
@@ -70,7 +75,8 @@ def get_directory_contents(path):
                         'type': 'file',
                         'size': size,  # Store raw size for sorting
                         'formatted_size': format_size(size),  # Store formatted size for display
-                        'path': full_path
+                        'path': full_path,
+                        'last_modified': last_modified_str
                     })
             except (PermissionError, FileNotFoundError):
                 continue

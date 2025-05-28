@@ -329,6 +329,11 @@
                                 Size
                                 <span class="sort-icon"></span>
                             </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sort-header"
+                                data-sort="last_modified">
+                                Last Modified
+                                <span class="sort-icon"></span>
+                            </th>
                             <th
                                 class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions
@@ -457,6 +462,8 @@
                 let comparison = 0;
                 if (field === 'size') {
                     comparison = b.size - a.size;
+                } else if (field === 'last_modified') {
+                    comparison = new Date(b.last_modified) - new Date(a.last_modified);
                 } else {
                     comparison = a[field].localeCompare(b[field]);
                 }
@@ -499,6 +506,10 @@
                 sizeCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
                 sizeCell.textContent = item.formatted_size;
 
+                const lastModifiedCell = document.createElement('td');
+                lastModifiedCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+                lastModifiedCell.textContent = item.last_modified;
+
                 const actionCell = document.createElement('td');
                 actionCell.className = 'px-6 py-4 whitespace-nowrap text-center';
                 actionCell.innerHTML = `
@@ -513,6 +524,7 @@
 
                 row.appendChild(nameCell);
                 row.appendChild(sizeCell);
+                row.appendChild(lastModifiedCell);
                 row.appendChild(actionCell);
                 tbody.appendChild(row);
             });
