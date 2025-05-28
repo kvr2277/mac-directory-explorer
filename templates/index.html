@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mac Directory Size Explorer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .directory-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .sort-header {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .sort-header:hover {
+            background-color: #f3f4f6;
+        }
+
+        .sort-icon {
+            display: inline-block;
+            margin-left: 4px;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+        }
+
+        .sort-asc .sort-icon {
+            border-bottom: 4px solid #6B7280;
+        }
+
+        .sort-desc .sort-icon {
+            border-top: 4px solid #6B7280;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6B7280;
+        }
+
+        .close-button:hover {
+            color: #374151;
+        }
+
+        .ai-button {
+            background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+            transition: all 0.3s ease;
+        }
+
+        .ai-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .command-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .command-modal-content {
+            position: relative;
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .command-box {
+            background-color: #1a1a1a;
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #4a5568;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-button:hover {
+            background-color: #2d3748;
+        }
+
+        .warning-text {
+            color: #e53e3e;
+            font-weight: 500;
+            margin: 10px 0;
+        }
+
+        .command-output {
+            background-color: #1a1a1a;
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .execute-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .execute-button:hover {
+            background-color: #45a049;
+        }
+
+        .execute-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .error-output {
+            color: #ff6b6b;
+        }
+
+        .success-output {
+            color: #4CAF50;
+        }
+
+        .loading-dots {
+            display: inline-block;
+            animation: loadingDots 1.5s infinite;
+        }
+
+        @keyframes loadingDots {
+            0% {
+                content: '.';
+            }
+
+            33% {
+                content: '..';
+            }
+
+            66% {
+                content: '...';
+            }
+        }
+
+        .initial-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            position: relative;
+            padding: 2rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-text {
+            color: #4B5563;
+            font-size: 1.25rem;
+            font-weight: 500;
+            text-align: left;
+            position: relative;
+            z-index: 2001;
+            white-space: nowrap;
+            padding-right: 2rem;
+            margin-left: -1rem;
+        }
+
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid #E5E7EB;
+            border-top: 4px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: relative;
+            z-index: 2001;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <!-- Initial Loading Screen -->
+    <div id="initialLoading" class="initial-loading">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Directory Explorer...</div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Mac Directory Size Explorer</h1>
+            <button onclick="searchWithGoogle()"
+                class="ai-button text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                    </path>
+                </svg>
+                <span>Ask AI</span>
+            </button>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="mb-4">
+                <div class="flex items-center space-x-2 text-sm text-gray-600" id="breadcrumb"></div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sort-header"
+                                data-sort="name">
+                                Name
+                                <span class="sort-icon"></span>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sort-header"
+                                data-sort="type">
+                                Type
+                                <span class="sort-icon"></span>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sort-header"
+                                data-sort="size">
+                                Size
+                                <span class="sort-icon"></span>
+                            </th>
+                            <th
+                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="directory-contents" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading spinner -->
+    <div class="loading">
+        <div class="loading-spinner">
+            <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Command Modal -->
+    <div id="commandModal" class="command-modal">
+        <div class="command-modal-content">
+            <span class="close-button" onclick="hideCommandModal()">&times;</span>
+            <h2 class="text-2xl font-bold mb-4">Directory Removal Commands</h2>
+            <div class="warning-text">
+                ⚠️ Warning: Please verify the directory contents and sizes before proceeding with deletion.
+            </div>
+            <div id="commandContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPath = '';
+        let currentSort = { field: 'size', direction: 'desc' };
+        let directoryContents = [];
+        let loadingTimer;
+        let loadingSeconds = 0;
+
+        // Function to hide initial loading screen
+        function hideInitialLoading() {
+            const loadingScreen = document.getElementById('initialLoading');
+            loadingScreen.classList.add('fade-out');
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+            }, 500);
+        }
+
+        // Fetch configuration when the page loads
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/get_config');
+                const data = await response.json();
+                currentPath = data.default_path;
+                await fetchDirectoryContents(currentPath);
+                // Set initial sort indicator
+                document.querySelector('[data-sort="size"]').classList.add('sort-desc');
+                hideInitialLoading();
+            } catch (error) {
+                console.error('Error fetching config:', error);
+                // Fallback to a default path if config fetch fails
+                currentPath = '/Users/vinod/POCs';
+                await fetchDirectoryContents(currentPath);
+                // Set initial sort indicator
+                document.querySelector('[data-sort="size"]').classList.add('sort-desc');
+                hideInitialLoading();
+            }
+        }
+
+        function showLoading() {
+            document.querySelector('.loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function updateBreadcrumb(path) {
+            const parts = path.split('/').filter(Boolean);
+            let breadcrumb = '<span class="cursor-pointer" onclick="navigateTo(\'/\')">Root</span>';
+            let currentPath = '';
+
+            parts.forEach((part, index) => {
+                currentPath += '/' + part;
+                breadcrumb += ' / ';
+                if (index === parts.length - 1) {
+                    breadcrumb += `<span class="text-gray-900">${part}</span>`;
+                } else {
+                    breadcrumb += `<span class="cursor-pointer" onclick="navigateTo('${currentPath}')">${part}</span>`;
+                }
+            });
+
+            document.getElementById('breadcrumb').innerHTML = breadcrumb;
+        }
+
+        function navigateTo(path) {
+            showLoading();
+            currentPath = path;
+            fetchDirectoryContents(path);
+        }
+
+        function sortContents(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = field === 'size' ? 'desc' : 'asc';
+            }
+
+            // Update sort indicators
+            document.querySelectorAll('.sort-header').forEach(header => {
+                header.classList.remove('sort-asc', 'sort-desc');
+                if (header.dataset.sort === currentSort.field) {
+                    header.classList.add(`sort-${currentSort.direction}`);
+                }
+            });
+
+            // Sort the contents
+            directoryContents.sort((a, b) => {
+                let comparison = 0;
+                if (field === 'size') {
+                    comparison = b.size - a.size;
+                } else {
+                    comparison = a[field].localeCompare(b[field]);
+                }
+                return currentSort.direction === 'asc' ? comparison : -comparison;
+            });
+
+            renderContents();
+        }
+
+        function renderContents() {
+            const tbody = document.getElementById('directory-contents');
+            tbody.innerHTML = '';
+
+            directoryContents.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'directory-item';
+
+                const nameCell = document.createElement('td');
+                nameCell.className = 'px-6 py-4 whitespace-nowrap';
+
+                if (item.type === 'directory') {
+                    nameCell.innerHTML = `
+                        <div class="flex items-center">
+                            <svg class="h-5 w-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                            </svg>
+                            <span class="cursor-pointer text-blue-600 hover:text-blue-800" onclick="navigateTo('${item.path}')">${item.name}</span>
+                        </div>`;
+                } else {
+                    nameCell.innerHTML = `
+                        <div class="flex items-center">
+                            <svg class="h-5 w-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>${item.name}</span>
+                        </div>`;
+                }
+
+                const typeCell = document.createElement('td');
+                typeCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+                typeCell.textContent = item.type.charAt(0).toUpperCase() + item.type.slice(1);
+
+                const sizeCell = document.createElement('td');
+                sizeCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+                sizeCell.textContent = item.formatted_size;
+
+                const actionCell = document.createElement('td');
+                actionCell.className = 'px-6 py-4 whitespace-nowrap text-center';
+                if (item.type === 'directory') {
+                    actionCell.innerHTML = `
+                        <button onclick="showDeleteCommand('${item.path}', '${item.name}')" 
+                                class="text-red-600 hover:text-red-800 transition-colors duration-200"
+                                title="Get delete command">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>`;
+                }
+
+                row.appendChild(nameCell);
+                row.appendChild(typeCell);
+                row.appendChild(sizeCell);
+                row.appendChild(actionCell);
+                tbody.appendChild(row);
+            });
+        }
+
+        function startLoadingTimer() {
+            loadingSeconds = 0;
+            const loadingDots = document.querySelector('.loading-dots');
+            if (loadingDots) {
+                loadingDots.innerHTML = `Loading... 0s`;
+            }
+            loadingTimer = setInterval(() => {
+                loadingSeconds++;
+                if (loadingDots) {
+                    loadingDots.innerHTML = `Loading... ${loadingSeconds}s`;
+                }
+            }, 1000);
+        }
+
+        function stopLoadingTimer() {
+            if (loadingTimer) {
+                clearInterval(loadingTimer);
+                loadingTimer = null;
+            }
+        }
+
+        async function fetchDirectoryContents(path) {
+            showLoading();
+            startLoadingTimer();
+            try {
+                const response = await fetch(`/get_directory_contents?path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+                directoryContents = data.contents;
+                // Force initial sort by size descending
+                currentSort = { field: 'size', direction: 'desc' };
+                sortContents('size');
+                updateBreadcrumb(data.current_path);
+            } catch (error) {
+                console.error('Error:', error);
+            } finally {
+                hideLoading();
+                stopLoadingTimer();
+            }
+        }
+
+        // Add click handlers for sort headers
+        document.querySelectorAll('.sort-header').forEach(header => {
+            header.addEventListener('click', () => {
+                sortContents(header.dataset.sort);
+            });
+        });
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchConfig();
+        });
+
+        function searchWithGoogle() {
+            // Get the top 5 largest directories
+            const largeDirs = directoryContents
+                .filter(item => item.type === 'directory')
+                .sort((a, b) => b.size - a.size)
+                .slice(0, 10);
+
+            // Format directory information
+            const dirInfo = largeDirs.map(dir => `${dir.name} (${dir.formatted_size})`).join(', ');
+
+            // Create the search query
+            const searchQuery = encodeURIComponent(
+                `What folders can I safely delete to free up space? Current large directories: ${dirInfo}`
+            );
+
+            // Redirect to Google search
+            window.open(`https://chat.openai.com/?q=${searchQuery}`, '_blank');
+        }
+
+        async function showDeleteCommand(path, name) {
+            const modal = document.getElementById('commandModal');
+            const content = document.getElementById('commandContent');
+
+            // Show loading state
+            content.innerHTML = '<div class="loading-dots">Loading directory contents... 0s</div>';
+            modal.style.display = 'block';
+            startLoadingTimer();
+
+            try {
+                // First fetch directory contents
+                const response = await fetch(`/get_directory_contents?path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+
+                // Calculate total size
+                const totalSize = data.contents.reduce((sum, item) => sum + item.size, 0);
+                const formattedTotalSize = formatSize(totalSize);
+
+                // Create directory contents table
+                let contentsHtml = `
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold mb-2">Directory Contents (${data.contents.length} items)</h3>
+                        <p class="text-sm text-gray-600 mb-4">Total Size: ${formattedTotalSize}</p>
+                        <div class="max-h-60 overflow-y-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left">Name</th>
+                                        <th class="px-4 py-2 text-left">Type</th>
+                                        <th class="px-4 py-2 text-left">Size</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                `;
+
+                data.contents.forEach(item => {
+                    contentsHtml += `
+                        <tr>
+                            <td class="px-4 py-2">${item.name}</td>
+                            <td class="px-4 py-2">${item.type}</td>
+                            <td class="px-4 py-2">${item.formatted_size}</td>
+                        </tr>
+                    `;
+                });
+
+                contentsHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                // Create the command with proper escaping
+                const command = `mv -f ${path} ~/.Trash/`;
+
+                // Add the delete command section
+                contentsHtml += `
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <div class="command-box">
+                            <div class="flex justify-between items-center">
+                                <span class="text-yellow-400">$ ${command}</span>
+                                <button class="copy-button" data-command="${command}">Copy</button>
+                            </div>
+                        </div>
+                        <div class="warning-text">
+                            ⚠️ This command will move "${name}" and all its contents to the Trash folder.
+                        </div>
+                        <button class="execute-button" data-command="${command}">Execute Command</button>
+                        <div id="commandOutput" class="command-output" style="display: none;"></div>
+                    </div>
+                `;
+
+                content.innerHTML = contentsHtml;
+
+                // Add event listeners after the content is added to the DOM
+                document.querySelector('.copy-button').addEventListener('click', function () {
+                    copyCommand(this.dataset.command);
+                });
+
+                document.querySelector('.execute-button').addEventListener('click', function () {
+                    executeCommand(this.dataset.command);
+                });
+
+            } catch (error) {
+                content.innerHTML = `<div class="error-output">Error loading directory contents: ${error.message}</div>`;
+            } finally {
+                stopLoadingTimer();
+            }
+        }
+
+        function formatSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let size = bytes;
+            let unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return `${size.toFixed(2)} ${units[unitIndex]}`;
+        }
+
+        function hideCommandModal() {
+            document.getElementById('commandModal').style.display = 'none';
+        }
+
+        function copyCommand(command) {
+            navigator.clipboard.writeText(command).then(() => {
+                const button = document.querySelector('.copy-button');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        async function executeCommand(command) {
+            const outputDiv = document.getElementById('commandOutput');
+            const executeButton = document.querySelector('.execute-button');
+
+            outputDiv.style.display = 'block';
+            outputDiv.innerHTML = '<span class="loading-dots">Executing command... 0s</span>';
+            executeButton.disabled = true;
+            startLoadingTimer();
+
+            try {
+                const response = await fetch('/execute_command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: command,
+                        path: currentPath
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Check if the command executed successfully (no error output)
+                if (!data.error) {
+                    outputDiv.innerHTML = `<span class="success-output">✓ Directory and its contents have been moved to Trash. You can find them in your Trash folder.</span>`;
+                    // Refresh the directory contents after successful execution
+                    setTimeout(() => {
+                        fetchDirectoryContents(currentPath);
+                        hideCommandModal(); // Close the modal after successful execution
+                    }, 1000);
+                } else {
+                    // Check for directory conflict error
+                    if (data.error.includes('Directory not empty')) {
+                        outputDiv.innerHTML = `<span class="error-output">✗ A directory with the same name already exists in Trash. Please empty your Trash folder first and try again.</span>`;
+                    } else {
+                        outputDiv.innerHTML = `<span class="error-output">✗ ${data.error}</span>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Execution error:', error);
+                outputDiv.innerHTML = `<span class="error-output">✗ Error: ${error.message}</span>`;
+            } finally {
+                executeButton.disabled = false;
+                stopLoadingTimer();
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('commandModal');
+            if (event.target === modal) {
+                hideCommandModal();
+            }
+        }
+    </script>
+</body>
+
+</html>
