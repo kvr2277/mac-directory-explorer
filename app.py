@@ -49,7 +49,6 @@ def get_directory_contents(path):
     """Get contents of a directory with sizes"""
     try:
         items = []
-        files_size = 0
         
         # Get all items in the directory
         for item in os.listdir(path):
@@ -65,22 +64,19 @@ def get_directory_contents(path):
                         'path': full_path
                     })
                 else:
-                    files_size += os.path.getsize(full_path)
+                    size = os.path.getsize(full_path)
+                    items.append({
+                        'name': item,
+                        'type': 'file',
+                        'size': size,  # Store raw size for sorting
+                        'formatted_size': format_size(size),  # Store formatted size for display
+                        'path': full_path
+                    })
             except (PermissionError, FileNotFoundError):
                 continue
         
-        # Add files category if there are any files
-        if files_size > 0:
-            items.append({
-                'name': 'Files',
-                'type': 'files',
-                'size': files_size,  # Store raw size for sorting
-                'formatted_size': format_size(files_size),  # Store formatted size for display
-                'path': path
-            })
-        
         # Sort by size in descending order by default
-        return sorted(items, key=lambda x: (-x['size'], x['type'] != 'directory', x['name'].lower()))
+        return sorted(items, key=lambda x: (-x['size'], x['name'].lower()))
     except (PermissionError, FileNotFoundError):
         return []
 

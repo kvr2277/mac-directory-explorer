@@ -107,3 +107,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Built with Flask and TailwindCSS
 - AI suggestions powered by ChatGPT
 - Icons from Heroicons 
+
+
+## ToDo
+
+[x] Remove the type column
+[x] Do not group files, show individual file too
+[ ] Show delete icon, next to file
+[ ] Add a new column that shows file/folder last updated time
